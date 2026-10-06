@@ -20,12 +20,15 @@ def load_file_groups():
         first_len = digit_count(item["first"])
         last_len = digit_count(item["last"])
 
+        # First aur last dono exactly 10 digit
         if first_len == 10 and last_len == 10:
             group_10.append(item)
 
+        # First aur last dono exactly 13 digit
         elif first_len == 13 and last_len == 13:
             group_13.append(item)
 
+        # Baaki sab Mix
         else:
             group_mix.append(item)
 
