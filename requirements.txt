@@ -1,4 +1,4 @@
 Flask
 gunicorn
 duckdb
-requests
+python-telegram-bot==22.5
