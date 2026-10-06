@@ -1,4 +1,4 @@
-import os
+ import os
 from flask import Flask
 from threading import Thread
 
@@ -90,6 +90,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     number = update.message.text.strip()
 
+    if not number.isdigit():
+        await update.message.reply_text(
+            "⚠️ Sirf number bhejo."
+        )
+        return
+
     files = context.user_data.get("files")
 
     if not files:
@@ -134,11 +140,16 @@ def main():
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
+
     application.add_handler(
         CallbackQueryHandler(button_click)
     )
+
     application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, number_search)
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            number_search
+        )
     )
 
     application.run_polling()
