@@ -12,7 +12,6 @@ from telegram.ext import (
     filters,
 )
 
-from file_groups import load_file_groups
 from search import search_files
 
 
@@ -36,79 +35,35 @@ def run_flask():
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "🔟 10 Digit Number",
-                callback_data="10_digit"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔢 13 Digit Number",
-                callback_data="13_digit"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔀 Mix Number",
-                callback_data="mix"
-            )
-        ],
+        [InlineKeyboardButton("🔎 Number Search", callback_data="search")]
     ]
 
     await update.message.reply_text(
         "🔎 850MindData Search Bot\n\n"
-        "Search type select karo:",
+        "Number search ke liye button dabao.",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     query = update.callback_query
     await query.answer()
 
-    groups = load_file_groups()
+    if query.data == "search":
 
-    selected = query.data
+        context.user_data["search_mode"] = True
 
-    if selected == "10_digit":
-        files = groups["10_digit"] + groups["mix"]
-
-        context.user_data["files"] = files
-
-        text = (
-            "🔟 10 Digit search selected.\n\n"
-            f"📁 Files to search: {len(files)}\n\n"
-            "Number bhejo."
+        await query.message.reply_text(
+            "📱 Number Search Selected\n\n"
+            "Ab number bhejo."
         )
-
-    elif selected == "13_digit":
-        files = groups["13_digit"] + groups["mix"]
-
-        context.user_data["files"] = files
-
-        text = (
-            "🔢 13 Digit search selected.\n\n"
-            f"📁 Files to search: {len(files)}\n\n"
-            "Number bhejo."
-        )
-
-    else:
-        files = groups["mix"]
-
-        context.user_data["files"] = files
-
-        text = (
-            "🔀 Mix search selected.\n\n"
-            f"📁 Files to search: {len(files)}\n\n"
-            "Number bhejo."
-        )
-
-    await query.message.reply_text(text)
 
 
 async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     number = update.message.text.strip()
 
     if not number.isdigit():
@@ -117,24 +72,42 @@ async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    files = context.user_data.get("files")
-
-    if not files:
+    if not context.user_data.get("search_mode"):
         await update.message.reply_text(
-            "⚠️ Pehle /start dabakar search type select karo."
+            "⚠️ Pehle /start dabao aur Number Search select karo."
         )
         return
 
     await update.message.reply_text(
-        f"🔍 Searching...\n\nNumber: `{number}`",
+        f"🔍 Searching...\n\n"
+        f"Number: `{number}`",
         parse_mode="Markdown",
     )
 
-    result = search_files(number, files)
+    try:
+        search_result = search_files(number)
+
+    except Exception as e:
+        await update.message.reply_text(
+            "❌ Search error hua.\n\n"
+            f"{str(e)}"
+        )
+        return
+
+    result = search_result["result"]
+    candidates = search_result["candidates"]
+
+    if not candidates:
+        await update.message.reply_text(
+            "❌ JSON range ke according is number ke liye "
+            "koi candidate file nahi mili."
+        )
+        return
 
     if not result:
         await update.message.reply_text(
-            "❌ Match nahi mila."
+            "❌ Candidate files me number nahi mila.\n\n"
+            f"📁 Candidate files: {len(candidates)}"
         )
         return
 
@@ -144,6 +117,7 @@ async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response += f"📁 File: {result['file']}\n\n"
 
     for key, value in data.items():
+
         if value is None or value == "":
             value = "N/A"
 
@@ -153,12 +127,22 @@ async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
+
     if not TOKEN:
-        raise RuntimeError("BOT_TOKEN environment variable missing")
+        raise RuntimeError(
+            "BOT_TOKEN environment variable missing"
+        )
 
-    Thread(target=run_flask, daemon=True).start()
+    Thread(
+        target=run_flask,
+        daemon=True
+    ).start()
 
-    application = Application.builder().token(TOKEN).build()
+    application = (
+        Application.builder()
+        .token(TOKEN)
+        .build()
+    )
 
     application.add_handler(
         CommandHandler("start", start)
