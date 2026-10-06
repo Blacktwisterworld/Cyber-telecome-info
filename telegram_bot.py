@@ -1,4 +1,5 @@
 import os
+import asyncio
 from flask import Flask
 from threading import Thread
 
@@ -37,7 +38,12 @@ def run_flask():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
-        [InlineKeyboardButton("🔎 Number Search", callback_data="search")]
+        [
+            InlineKeyboardButton(
+                "🔎 Number Search",
+                callback_data="search"
+            )
+        ]
     ]
 
     await update.message.reply_text(
@@ -47,7 +53,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_click(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     query = update.callback_query
     await query.answer()
@@ -62,7 +71,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def number_search(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     number = update.message.text.strip()
 
@@ -78,43 +90,109 @@ async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.reply_text(
+    searching_message = await update.message.reply_text(
         f"🔍 Searching...\n\n"
-        f"Number: `{number}`",
+        f"Number: `{number}`\n\n"
+        f"📂 JSON se candidate files find ki ja rahi hain...",
         parse_mode="Markdown",
     )
 
+    loop = asyncio.get_running_loop()
+
+    async def send_progress(index, total, file_path):
+
+        text = (
+            f"🔍 Searching...\n\n"
+            f"Number: `{number}`\n\n"
+            f"📂 Candidate files: {total}\n"
+            f"📄 Checking: {index}/{total}\n\n"
+            f"`{file_path}`"
+        )
+
+        try:
+            await searching_message.edit_text(
+                text,
+                parse_mode="Markdown",
+            )
+        except Exception:
+            pass
+
+    def progress_callback(index, total, file_path):
+
+        asyncio.run_coroutine_threadsafe(
+            send_progress(
+                index,
+                total,
+                file_path
+            ),
+            loop
+        )
+
     try:
-        search_result = search_files(number)
+
+        search_result = await asyncio.to_thread(
+            search_files,
+            number,
+            progress_callback
+        )
 
     except Exception as e:
-        await update.message.reply_text(
+
+        await searching_message.edit_text(
             "❌ Search error hua.\n\n"
-            f"{str(e)}"
+            f"`{str(e)}`",
+            parse_mode="Markdown",
         )
+
         return
 
-    result = search_result["result"]
-    candidates = search_result["candidates"]
+    candidates = search_result.get(
+        "candidates",
+        []
+    )
+
+    result = search_result.get(
+        "result"
+    )
+
+    # -----------------------------------------
+    # NO CANDIDATE FILE
+    # -----------------------------------------
 
     if not candidates:
-        await update.message.reply_text(
-            "❌ JSON range ke according is number ke liye "
+
+        await searching_message.edit_text(
+            "❌ Is number ke range me "
             "koi candidate file nahi mili."
         )
+
         return
 
+    # -----------------------------------------
+    # MATCH NOT FOUND
+    # -----------------------------------------
+
     if not result:
-        await update.message.reply_text(
-            "❌ Candidate files me number nahi mila.\n\n"
-            f"📁 Candidate files: {len(candidates)}"
+
+        await searching_message.edit_text(
+            "❌ Match nahi mila.\n\n"
+            f"📂 Candidate files: {len(candidates)}\n"
+            f"🔍 Checked files: "
+            f"{search_result.get('checked', 0)}"
         )
+
         return
+
+    # -----------------------------------------
+    # MATCH FOUND
+    # -----------------------------------------
 
     data = result["data"]
 
-    response = "✅ MATCH FOUND\n\n"
-    response += f"📁 File: {result['file']}\n\n"
+    response = (
+        "✅ MATCH FOUND\n\n"
+        f"📁 File: {result['file']}\n\n"
+    )
 
     for key, value in data.items():
 
@@ -123,7 +201,9 @@ async def number_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         response += f"• {key}: {value}\n"
 
-    await update.message.reply_text(response)
+    await searching_message.edit_text(
+        response
+    )
 
 
 def main():
