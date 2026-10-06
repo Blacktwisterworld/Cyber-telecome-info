@@ -1,4 +1,4 @@
-HF_DATASET = "tfqdeadlo/850MindData"
+HF_DATASET = "Cyber-insight-309/Phone-1"
 
 HF_BASE_URL = (
     "https://huggingface.co/datasets/"
