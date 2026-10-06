@@ -25,7 +25,10 @@ def search_files(number, files):
             ).fetchone()
 
             if result:
-                columns = [desc[0] for desc in con.description]
+                columns = [
+                    description[0]
+                    for description in con.description
+                ]
 
                 return {
                     "file": file_path,
