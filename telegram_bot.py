@@ -73,16 +73,37 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     selected = query.data
 
     if selected == "10_digit":
-        context.user_data["files"] = groups["10_digit"]
-        text = "🔟 10 Digit search selected.\n\nNumber bhejo."
+        files = groups["10_digit"] + groups["mix"]
+
+        context.user_data["files"] = files
+
+        text = (
+            "🔟 10 Digit search selected.\n\n"
+            f"📁 Files to search: {len(files)}\n\n"
+            "Number bhejo."
+        )
 
     elif selected == "13_digit":
-        context.user_data["files"] = groups["13_digit"]
-        text = "🔢 13 Digit search selected.\n\nNumber bhejo."
+        files = groups["13_digit"] + groups["mix"]
+
+        context.user_data["files"] = files
+
+        text = (
+            "🔢 13 Digit search selected.\n\n"
+            f"📁 Files to search: {len(files)}\n\n"
+            "Number bhejo."
+        )
 
     else:
-        context.user_data["files"] = groups["mix"]
-        text = "🔀 Mix search selected.\n\nNumber bhejo."
+        files = groups["mix"]
+
+        context.user_data["files"] = files
+
+        text = (
+            "🔀 Mix search selected.\n\n"
+            f"📁 Files to search: {len(files)}\n\n"
+            "Number bhejo."
+        )
 
     await query.message.reply_text(text)
 
@@ -139,7 +160,9 @@ def main():
 
     application = Application.builder().token(TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
+    application.add_handler(
+        CommandHandler("start", start)
+    )
 
     application.add_handler(
         CallbackQueryHandler(button_click)
