@@ -1,14 +1,55 @@
 import duckdb
-from config import HF_BASE_URL
+from config import HF_BASE_URL, RANGES_FILE
+import json
 
 
-def search_files(number, files):
+def load_ranges():
+    with open(RANGES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)["files"]
+
+
+def find_candidate_files(number):
     number = str(number)
+
+    candidates = []
+
+    for item in load_ranges():
+        first = str(item["first"])
+        last = str(item["last"])
+
+        # Numeric comparison
+        try:
+            number_int = int(number)
+            first_int = int(first)
+            last_int = int(last)
+
+            if first_int <= number_int <= last_int:
+                candidates.append(item)
+
+        except ValueError:
+            continue
+
+    return candidates
+
+
+def search_files(number):
+    number = str(number)
+
+    # Step 1: JSON se candidate files nikalo
+    candidates = find_candidate_files(number)
+
+    if not candidates:
+        return {
+            "result": None,
+            "candidates": [],
+        }
 
     con = duckdb.connect(":memory:")
 
     try:
-        for item in files:
+        # Step 2: Sirf candidate files me search karo
+        for item in candidates:
+
             file_path = item["file"]
             parquet_url = HF_BASE_URL + file_path
 
@@ -31,11 +72,17 @@ def search_files(number, files):
                 ]
 
                 return {
-                    "file": file_path,
-                    "data": dict(zip(columns, result))
+                    "result": {
+                        "file": file_path,
+                        "data": dict(zip(columns, result)),
+                    },
+                    "candidates": candidates,
                 }
 
-        return None
+        return {
+            "result": None,
+            "candidates": candidates,
+        }
 
     finally:
         con.close()
